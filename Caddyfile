@@ -1,0 +1,13 @@
+:80 {
+    # Se a variável SCRAPER_API_KEY estiver configurada, exige o cabeçalho X-API-Key
+    @need_auth {
+        not header X-API-Key {$SCRAPER_API_KEY}
+    }
+    handle @need_auth {
+        respond "Unauthorized: Cabeçalho X-API-Key inválido ou ausente." 401
+    }
+
+    handle {
+        reverse_proxy google-maps-scraper:8080
+    }
+}

@@ -15,11 +15,29 @@ Notes:
 - Geocoding uses OpenStreetMap Nominatim (free, no key). Please be gentle: it allows ~1 request/sec
   and requires a descriptive User-Agent (set below). Don't loop it aggressively.
 """
-import argparse, csv, io, json, os, re, sys, time, urllib.request, urllib.parse, urllib.error
+import argparse, base64, csv, io, json, os, re, sys, time, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
-BASE = os.environ.get("SCRAPER_BASE_URL", "http://localhost:8080")
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+BASE = os.environ.get("SCRAPER_BASE_URL", "http://localhost:8080").rstrip("/")
 KEY = os.environ.get("SCRAPER_API_KEY", "")
+USER = os.environ.get("SCRAPER_USER", "")
+PASS = os.environ.get("SCRAPER_PASSWORD", "")
+
+# Extract basic auth if credentials are embedded in URL (e.g. https://user:pass@coolify-app.com)
+_parsed = urllib.parse.urlsplit(BASE)
+if _parsed.username and _parsed.password:
+    USER = _parsed.username
+    PASS = _parsed.password
+    _clean_netloc = _parsed.netloc.split("@")[-1]
+    BASE = urllib.parse.urlunsplit((_parsed.scheme, _clean_netloc, _parsed.path, _parsed.query, _parsed.fragment)).rstrip("/")
+
 # Money-useful LEAD fields only — what you actually use to contact/qualify a lead.
 # Everything else (geo coordinates, IDs, hours, images, reviews blobs…) is dropped by default.
 LEAD = ["title", "phone", "emails", "website", "category", "address", "review_rating", "review_count"]
@@ -30,10 +48,19 @@ def req(method, path, body=None):
     headers = {"Content-Type": "application/json", "User-Agent": UA}
     if KEY:
         headers["X-API-Key"] = KEY
+    if USER and PASS:
+        auth_str = f"{USER}:{PASS}"
+        headers["Authorization"] = "Basic " + base64.b64encode(auth_str.encode("utf-8")).decode("ascii")
     data = json.dumps(body).encode() if body is not None else None
     r = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(r, timeout=60) as resp:
-        return resp.status, resp.read()
+    try:
+        with urllib.request.urlopen(r, timeout=60) as resp:
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            print(f"\n✗ Erro de autenticação (HTTP {e.code}) em {BASE + path}.", file=sys.stderr)
+            print("  Configure SCRAPER_USER e SCRAPER_PASSWORD ou SCRAPER_API_KEY.", file=sys.stderr)
+        raise
 
 
 def geocode(place):

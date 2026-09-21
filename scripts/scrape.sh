@@ -6,7 +6,11 @@ set -euo pipefail
 
 BASE="${SCRAPER_BASE_URL:-http://localhost:8080}"
 KEY="${SCRAPER_API_KEY:-}"
-AUTH=(); [ -n "$KEY" ] && AUTH=(-H "X-API-Key: $KEY")
+USER="${SCRAPER_USER:-}"
+PASS="${SCRAPER_PASSWORD:-}"
+AUTH=()
+[ -n "$KEY" ] && AUTH+=(-H "X-API-Key: $KEY")
+[ -n "$USER" ] && AUTH+=(-u "$USER:$PASS")
 
 KEYWORD="${1:-}"; LAT="${2:-}"; LON="${3:-}"; DEPTH="${4:-5}"
 if [ -z "$KEYWORD" ] || [ -z "$LAT" ] || [ -z "$LON" ]; then
