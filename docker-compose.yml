@@ -4,8 +4,8 @@ services:
     container_name: gmaps-scraper
     restart: unless-stopped
     command: ["-web", "-pages-per-browser", "2", "-data-folder", "/gmapsdata"]
-    ports:
-      - "8080:8080"
+    expose:
+      - 8080
     volumes:
       - gmaps_data:/gmapsdata
       - gmaps_cache:/opt
