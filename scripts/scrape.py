@@ -25,6 +25,21 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+def _load_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k not in os.environ and v:
+                        os.environ[k] = v
+
+_load_env()
+
 BASE = os.environ.get("SCRAPER_BASE_URL", "http://localhost:8080").rstrip("/")
 KEY = os.environ.get("SCRAPER_API_KEY", "")
 USER = os.environ.get("SCRAPER_USER", "")
